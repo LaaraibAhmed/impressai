@@ -14,7 +14,8 @@ class ChatConsumer(WebsocketConsumer):
             self.group_name,
             self.channel_name
         )
-
+        
+        self.sendmessage(user_message="sendproblem")
         self.accept()
 
     def disconnect(self, close_code):
@@ -33,6 +34,8 @@ class ChatConsumer(WebsocketConsumer):
         if user_message == '/reset':
             self.scope['session']['current_question_id'] = None
             self.scope['session']['message_history'] = []
+            self.scope['session']['score'] = 0
+            # self.scope['session'].modified = True
             self.scope['session'].save()
             return
 
@@ -47,7 +50,23 @@ class ChatConsumer(WebsocketConsumer):
             self.group_name,
             user_message_obj
         )
+        self.sendmessage(user_message)
 
+        
+
+    def chat_message(self, message_obj):
+        # Send message to WebSocket
+        self.send(text_data=json.dumps(message_obj))
+        self.add_to_history(message_obj)
+
+    def add_to_history(self, message_obj):
+        message_history = self.scope['session'].get('message_history', [])
+        message_history.append(message_obj)
+        self.scope['session']['message_history'] = message_history
+        self.scope['session'].save()
+
+
+    def sendmessage(self, user_message):
         bot_response_list = generate_bot_responses(user_message, self.scope['session'])
         for bot_response in bot_response_list:
             bot_response_obj = {
@@ -60,14 +79,4 @@ class ChatConsumer(WebsocketConsumer):
                 self.group_name,
                 bot_response_obj
             )
-
-    def chat_message(self, message_obj):
-        # Send message to WebSocket
-        self.send(text_data=json.dumps(message_obj))
-        self.add_to_history(message_obj)
-
-    def add_to_history(self, message_obj):
-        message_history = self.scope['session'].get('message_history', [])
-        message_history.append(message_obj)
-        self.scope['session']['message_history'] = message_history
-        self.scope['session'].save()
+        

@@ -1,151 +1,214 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Quizbot</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-        }
-        .chat-container {
-            max-width: 400px;
-            margin: 0 auto;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            padding: 10px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-        .chat-messages {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        .message {
-            display: flex;
-            margin-bottom: 10px;
-        }
-        .user-message {
-            justify-content: flex-end;
-        }
-        .bot-message {
-            justify-content: flex-start;
-        }
-        .message-text {
-            background-color: #f0f0f0;
-            border-radius: 15px;
-            padding: 8px 15px;
-            max-width: 70%;
-        }
-        .user-message .message-text {
-            background-color: #e1e1e1;
-            color: #333;
-        }
-        .input-container {
-            display: flex;
-            margin-top: 10px;
-        }
-        .input-box {
-            flex: 1;
-            border: 1px solid #ccc;
-            border-radius: 20px;
-            padding: 8px 15px;
-            outline: none;
-            background-color: #f0f0f0;
-            color: #333;
-        }
-        .send-button {
-            background-color: #777;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            padding: 8px 15px;
-            margin-left: 10px;
-            cursor: pointer;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+
+      .chat-container {
+        max-width: 400px;
+        width: 100%;
+        background-color: #fff;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 10px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .chat-messages {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .message {
+        display: flex;
+        margin-bottom: 10px;
+        flex-direction: column;
+      }
+
+      .user-message {
+        align-self: flex-end;
+      }
+
+      .bot-message {
+        align-self: flex-start;
+      }
+
+      .message-text {
+        background-color: #f0f0f0;
+        border-radius: 15px;
+        padding: 8px 15px;
+        max-width: 70%;
+        word-wrap: break-word;
+      }
+
+      .user-message .message-text {
+        background-color: #e1e1e1;
+        color: #333;
+      }
+
+      .input-container {
+        display: flex;
+        margin-top: 10px;
+      }
+
+      .input-box {
+        flex: 1;
+        border: 1px solid #ccc;
+        border-radius: 20px;
+        padding: 8px 15px;
+        outline: none;
+        background-color: #f0f0f0;
+        color: #333;
+      }
+
+      .send-button {
+        background-color: #777;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        padding: 8px 15px;
+        margin-left: 10px;
+        cursor: pointer;
+      }
+
+      .send-button:hover {
+        background-color: #555;
+      }
     </style>
-</head>
-<body>
+  </head>
+
+  <body>
     <div class="chat-container">
-        <ul class="chat-messages" id="chat-messages">
-            {% for message in request.session.message_history %}
-                {% if message.is_user %}
-                <li class="message user-message">
-                    <div class="message-text">{{message.text}}</div>
-                </li>
-                {% else %}
-                <li class="message bot-message">
-                    <div class="message-text">{{message.text}}</div>
-                </li>
-                {% endif %}
-            {% endfor %}
-        </ul>
-        <div class="input-container">
-            <input type="text" class="input-box" id="input-box" placeholder="Type your message...">
-            <button class="send-button" id="send-button">Send</button>
-            <button class="send-button" id="reset-button">Reset</button>
-        </div>
+      <ul class="chat-messages" id="chat-messages">
+        {% for message in request.session.message_history %}
+        <!--  -->
+        {% if message.is_user %}
+        <li class="message user-message">
+          <div class="message-text">{{message.text}}</div>
+        </li>
+        {% else %} {% if message.question %}
+        <li class="message bot-message">
+          <div class="message-text">{{message.question}}</div>
+          <div class="message-text">{{message.options}}</div>
+        </li>
+        {% elif message.eval %}
+        <li class="message bot-message">
+          <div class="message-text">{{message.eval}}</div>
+          <div class="message-text">{{message.next_question}}</div>
+          <div class="message-text">{{message.next_options}}</div>
+        </li>
+        {% else %}
+        <li class="message bot-message">
+          <div class="message-text">{{message.text}}</div>
+        </li>
+        {% endif %} {% endif %} {% endfor %}
+      </ul>
+      <div class="input-container">
+        <input
+          type="text"
+          class="input-box"
+          id="input-box"
+          placeholder="Type your message..."
+        />
+        <button class="send-button" id="send-button">Send</button>
+        <button class="send-button" id="reset-button">Reset</button>
+      </div>
     </div>
     <script>
+      const chatSocket = new WebSocket(
+        "ws://" + window.location.host + "/chat/"
+      );
 
-        const chatSocket = new WebSocket(
-            'ws://'
-            + window.location.host
-            + '/chat/'
-        );
+      chatSocket.onopen = function (e) {
+        console.log("Chat socket connected");
+      };
 
-        chatSocket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            addMessage(data.text, data.is_user);
-        };
+      chatSocket.onmessage = function (e) {
+        const data = JSON.parse(e.data);
+        addMessage(data.text, data.is_user);
+      };
 
-        chatSocket.onclose = function(e) {
-            console.error('Chat socket closed unexpectedly');
-        };
+      chatSocket.onclose = function (e) {
+        console.error("Chat socket closed unexpectedly");
+      };
 
-        document.querySelector('#input-box').focus();
-        document.querySelector('#input-box').onkeyup = function(e) {
-            if (e.keyCode === 13) {  // enter, return
-                document.querySelector('#send-button').click();
-            }
-        };
+      document.querySelector("#input-box").focus();
+      document.querySelector("#input-box").onkeyup = function (e) {
+        if (e.keyCode === 13) {
+          // enter, return
+          document.querySelector("#send-button").click();
+        }
+      };
 
-        document.querySelector('#send-button').onclick = function(e) {
-            const inputBox = document.getElementById('input-box');
-            const userMessage = inputBox.value.trim();
-            if (!userMessage) {
-                return
-            }
-            chatSocket.send(JSON.stringify({
-                'message': userMessage
-            }));
-            inputBox.value = '';
-        };
-
-        document.querySelector('#reset-button').onclick = function(e) {
-            const inputBox = document.getElementById('input-box');
-            inputBox.value = '/reset';
-            document.querySelector('#send-button').click();
-            location.reload()
-        };
-
-    // Function to add a new message to the chat container
-    function addMessage(text, isUser = false) {
-        const chatMessages = document.getElementById('chat-messages');
-        const messageClass = isUser ? 'user-message' : 'bot-message';
-        const messageText = `
-            <li class="message ${messageClass}">
-                <div class="message-text">${text}</div>
-            </li>
-        `;
-        chatMessages.insertAdjacentHTML('beforeend', messageText);
-    }
-
-    // Function to handle user message submission
-    function sendMessage() {
-        const inputBox = document.getElementById('input-box');
+      document.querySelector("#send-button").onclick = function (e) {
+        const inputBox = document.getElementById("input-box");
         const userMessage = inputBox.value.trim();
+        if (!userMessage) {
+          return;
+        }
+        chatSocket.send(
+          JSON.stringify({
+            message: userMessage,
+          })
+        );
+        inputBox.value = "";
+      };
 
-    }
+      document.querySelector("#reset-button").onclick = function (e) {
+        const inputBox = document.getElementById("input-box");
+        inputBox.value = "/reset";
+        document.querySelector("#send-button").click();
+        location.reload();
+      };
 
+      // Function to add a new message to the chat container
+      function addMessage(text, isUser = false) {
+        const chatMessages = document.getElementById("chat-messages");
+        const messageClass = isUser ? "user-message" : "bot-message";
+        console.log("text is ::", text);
+        let messageText;
+        if (typeof text.question !== "undefined") {
+          console.log("cond 1");
+          console.log(typeof text.question, typeof text.eval);
+          messageText = `<li class="message ${messageClass}">
+                        <div class="message-text">${text.question}</div>
+                        <div class="message-text">${text.options}</div>
+                    </li>
+                `;
+        } else if (typeof text.eval !== "undefined") {
+          console.log("cond 2");
+          messageText = `<li class="message ${messageClass}">
+                        <div class="message-text">${text.eval}</div>
+                        <div class="message-text">${text.next_question}</div>
+                        <div class="message-text">${text.next_options}</div>
+                    </li>
+                `;
+        } else {
+          console.log("cond 3");
+          messageText = `<li class="message ${messageClass}">
+                                <div class="message-text">${text}</div>
+                         </li>
+                `;
+        }
+        chatMessages.insertAdjacentHTML("beforeend", messageText);
+      }
     </script>
-</body>
+  </body>
 </html>
